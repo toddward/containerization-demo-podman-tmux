@@ -52,7 +52,7 @@ If `Rootless` shows `false` or the `subuid` check returns nothing, let the instr
 
 ```bash
 # Pre-pull the base image so participants don't all hit the network at once
-podman pull docker.io/library/nginx:alpine
+podman pull registry.access.redhat.com/ubi8/ubi:latest
 
 # Verify Podman, tmux, and curl are installed
 podman --version && tmux -V && curl --version
@@ -159,10 +159,13 @@ Create the Containerfile (Podman's equivalent of a Dockerfile — Podman accepts
 
 ```bash
 cat > Containerfile << 'EOF'
-FROM docker.io/library/nginx:alpine
+FROM registry.access.redhat.com/ubi8/ubi:latest
+
+# Install NGINX from the UBI repos
+RUN yum install -y nginx && yum clean all
 
 # Remove the default NGINX welcome page
-RUN rm /usr/share/nginx/html/index.html
+RUN rm -f /usr/share/nginx/html/index.html
 
 # Copy in our custom response page
 COPY index.html /usr/share/nginx/html/index.html
@@ -178,8 +181,9 @@ EOF
 
 ### What's Happening Here
 
-- **`FROM docker.io/library/nginx:alpine`** — Starts from the official NGINX image using the lightweight Alpine variant. We use the fully-qualified registry path (`docker.io/library/`) which is a Podman best practice.
-- **`RUN rm ...`** — Removes the default welcome page so ours takes its place.
+- **`FROM registry.access.redhat.com/ubi8/ubi:latest`** — Starts from the Red Hat Universal Base Image 8 (UBI8). UBI images are freely redistributable and provide an enterprise RHEL-based foundation. We use the fully-qualified registry path which is a Podman best practice.
+- **`RUN yum install -y nginx && yum clean all`** — Installs NGINX from the UBI package repositories and cleans the yum cache to keep the image smaller.
+- **`RUN rm -f ...`** — Removes the default welcome page so ours takes its place.
 - **`COPY index.html ...`** — Places our custom page where NGINX serves static files from.
 - **`EXPOSE 80`** — Documents the port the container listens on. The `-P` flag in Step 7 uses this to know which ports to publish.
 - **`CMD`** — Runs NGINX in the foreground so the container stays alive.
@@ -203,7 +207,7 @@ Build the container image with Podman:
 podman build -t nginx-demo-$MY_NAME .
 ```
 
-> **First build note:** If the base image has not been pre-pulled, Podman will download `nginx:alpine` (~40 MB). You will see "Trying to pull docker.io/library/nginx:alpine..." — this is normal and may take a minute.
+> **First build note:** If the base image has not been pre-pulled, Podman will download `ubi8/ubi:latest` (~200 MB). You will see "Trying to pull registry.access.redhat.com/ubi8/ubi:latest..." — this is normal and may take a minute. The build will also install NGINX via `yum`, which downloads additional packages.
 
 You should see output ending with something like:
 
@@ -311,7 +315,7 @@ podman ps --filter name=mycontainer-$MY_NAME
 podman logs mycontainer-$MY_NAME
 
 # Exec into the running container (opens a shell inside)
-podman exec -it mycontainer-$MY_NAME /bin/sh
+podman exec -it mycontainer-$MY_NAME /bin/bash
 # Type 'exit' or press Ctrl-D to leave the container shell
 
 # Inspect the container details
@@ -340,7 +344,7 @@ rm -rf ~/container-demo-$MY_NAME
 tmux kill-session -t $(tmux display-message -p '#S')
 ```
 
-> **Note:** The base `nginx:alpine` image is shared by all participants. The instructor will clean it up after the session.
+> **Note:** The base `ubi8/ubi:latest` image is shared by all participants. The instructor will clean it up after the session.
 
 ---
 
@@ -349,7 +353,7 @@ tmux kill-session -t $(tmux display-message -p '#S')
 | Problem | Fix |
 |---|---|
 | `echo $MY_NAME` is blank | You need to re-export the variable: `export MY_NAME="yourname"`. This happens if you opened a new shell or reattached to tmux. |
-| `podman build` fails with a network error | The base image may not be pre-pulled. Ask the instructor to run `podman pull docker.io/library/nginx:alpine`. Also check internet access. |
+| `podman build` fails with a network error | The base image may not be pre-pulled. Ask the instructor to run `podman pull registry.access.redhat.com/ubi8/ubi:latest`. Also check internet access. The build also needs network access to install NGINX via `yum`. |
 | `podman build` can't find the Containerfile | You are likely in the wrong directory. Run `cd ~/container-demo-$MY_NAME` and try again. |
 | Port already in use | The `-P` flag should prevent this. If it happens, stop any conflicting container: `podman ps` then `podman stop <id>`. |
 | Permission denied on Podman | Podman should be running rootless. Run `podman info --format '{{.Host.Security.Rootless}}'` — if it shows `false`, ask the instructor. Also check: `grep "^$(whoami):" /etc/subuid`. |
