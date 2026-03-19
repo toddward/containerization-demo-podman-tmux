@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Containerization Basics — Part 1</title>
+  <link href="https://cdn.jsdelivr.net/npm/@rhds/tokens@3.0.2/css/global.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=Red+Hat+Text:wght@400;500;700&family=Red+Hat+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-primary: #000000;
+      --bg-secondary: #1f1f1f;
+      --bg-surface: #292929;
+      --text-primary: #ffffff;
+      --text-secondary: #c7c7c7;
+      --text-muted: #a3a3a3;
+      --accent: #ee0000;
+      --accent-dark: #a60000;
+      --accent-light: #f56e6e;
+      --tag-border: #383838;
+      --icon-filter: brightness(0) invert(1);
+      --icon-filter-accent: invert(12%) sepia(100%) saturate(10000%) hue-rotate(0deg) brightness(95%);
+      --font-display: var(--rh-font-family-heading, 'Red Hat Display', sans-serif);
+      --font-body: var(--rh-font-family-body-text, 'Red Hat Text', sans-serif);
+      --font-mono: var(--rh-font-family-code, 'Red Hat Mono', monospace);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .deck { position: relative; width: 100%; height: 100%; }
+
+    .slide {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      width: 100%;
+      height: 100vh;
+      padding: var(--rh-space-4xl, 80px) var(--rh-space-3xl, 64px);
+      position: relative;
+      overflow: hidden;
+    }
+    .slide.active { display: flex; }
+
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      right: -10%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(ellipse, rgba(238,0,0,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .slide > * { position: relative; z-index: 1; }
+
+    /* === LOGO === */
+    .rh-logo { height: 28px; width: auto; }
+    .rh-logo.small { height: 20px; }
+    .rh-logo.large { height: 40px; }
+
+    /* === ICONS === */
+    .rh-icon { height: 48px; width: 48px; filter: var(--icon-filter); vertical-align: middle; }
+    .rh-icon.small { height: 24px; width: 24px; }
+    .rh-icon.medium { height: 48px; width: 48px; }
+    .rh-icon.large { height: 64px; width: 64px; }
+    .rh-icon.xl { height: 96px; width: 96px; }
+    .rh-icon.accent { filter: var(--icon-filter-accent); }
+
+    /* === BREADCRUMB === */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--rh-space-sm, 8px);
+      font-family: var(--font-mono);
+      font-size: var(--rh-font-size-body-text-xs, 0.75rem);
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: var(--rh-space-2xl, 48px);
+    }
+
+    /* === SLIDE LABEL === */
+    .slide-label {
+      font-family: var(--font-mono);
+      font-size: var(--rh-font-size-body-text-xs, 0.75rem);
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: var(--rh-space-lg, 24px);
+    }
+
+    /* === TYPOGRAPHY === */
+    h1 {
+      font-family: var(--font-display);
+      font-size: var(--rh-font-size-heading-2xl, 3rem);
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: var(--rh-space-lg, 24px);
+      max-width: 900px;
+    }
+    h2 {
+      font-family: var(--font-display);
+      font-size: var(--rh-font-size-heading-lg, 2rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: var(--rh-space-lg, 24px);
+      max-width: 900px;
+    }
+    h3 {
+      font-family: var(--font-display);
+      font-size: var(--rh-font-size-heading-md, 1.5rem);
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: var(--rh-space-md, 16px);
+    }
+    .subtitle {
+      font-family: var(--font-body);
+      font-size: var(--rh-font-size-body-text-xl, 1.25rem);
+      color: var(--text-muted);
+      max-width: 700px;
+      line-height: 1.6;
+      margin-bottom: var(--rh-space-xl, 32px);
+    }
+    .body-text {
+      font-size: var(--rh-font-size-body-text-lg, 1.125rem);
+      color: var(--text-secondary);
+      line-height: 1.7;
+      max-width: 800px;
+    }
+    .accent { color: var(--accent); }
+    .accent-italic { color: var(--accent); font-style: italic; }
+
+    /* === TAGS === */
+    .tags { display: flex; flex-wrap: wrap; gap: var(--rh-space-sm, 8px); margin-bottom: var(--rh-space-xl, 32px); }
+    .tag {
+      display: inline-block;
+      padding: var(--rh-space-xs, 4px) var(--rh-space-md, 16px);
+      border: var(--rh-border-width-sm, 1px) solid var(--tag-border);
+      border-radius: var(--rh-border-radius-pill, 64px);
+      font-family: var(--font-mono);
+      font-size: var(--rh-font-size-body-text-xs, 0.75rem);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .tag.accent { border-color: var(--accent); color: var(--accent); }
+
+    /* === ATTRIBUTION === */
+    .attribution {
+      font-family: var(--font-body);
+      font-size: var(--rh-font-size-body-text-sm, 0.875rem);
+      color: var(--text-muted);
+      margin-top: auto;
+      padding-top: var(--rh-space-xl, 32px);
+    }
+
+    /* === SOURCE === */
+    .source {
+      font-family: var(--font-mono);
+      font-size: var(--rh-font-size-body-text-xs, 0.75rem);
+      color: var(--text-muted);
+      margin-top: auto;
+      padding-top: var(--rh-space-lg, 24px);
+    }
+
+    /* === GRID LAYOUTS === */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--rh-space-2xl, 48px);
+      margin-top: var(--rh-space-xl, 32px);
+    }
+    .three-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: var(--rh-space-xl, 32px);
+      margin-top: var(--rh-space-xl, 32px);
+    }
+    .four-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: var(--rh-space-lg, 24px);
+      margin-top: var(--rh-space-xl, 32px);
+    }
+
+    /* === CARDS === */
+    .card {
+      background: var(--bg-surface);
+      border-radius: var(--rh-border-radius-default, 3px);
+      padding: var(--rh-space-lg, 24px);
+      border: 1px solid var(--tag-border);
+    }
+    .card h3 { font-size: var(--rh-font-size-heading-sm, 1.25rem); }
+    .card p { font-size: var(--rh-font-size-body-text-md, 1rem); color: var(--text-secondary); line-height: 1.6; }
+    .card .rh-icon { margin-bottom: var(--rh-space-md, 16px); }
+
+    /* === COMPARISON === */
+    .compare-box {
+      background: var(--bg-surface);
+      border-radius: var(--rh-border-radius-default, 3px);
+      padding: var(--rh-space-xl, 32px);
+      border: 1px solid var(--tag-border);
+    }
+    .compare-box.highlighted {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(238,0,0,0.1);
+    }
+    .compare-box h3 { margin-bottom: var(--rh-space-md, 16px); }
+    .compare-box p { font-size: var(--rh-font-size-body-text-lg, 1.125rem); color: var(--text-secondary); line-height: 1.6; }
+
+    /* === FEATURE LIST === */
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: var(--rh-space-lg, 24px); margin-top: var(--rh-space-xl, 32px); }
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--rh-space-md, 16px);
+      font-size: var(--rh-font-size-body-text-lg, 1.125rem);
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .feature-list li .rh-icon { flex-shrink: 0; margin-top: 2px; }
+    .feature-list li strong { color: var(--text-primary); }
+
+    /* === BIG NUMBER === */
+    .big-number {
+      font-family: var(--font-display);
+      font-size: 6rem;
+      font-weight: 900;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: var(--rh-space-md, 16px);
+    }
+    .big-number-context {
+      font-size: var(--rh-font-size-body-text-xl, 1.25rem);
+      color: var(--text-secondary);
+      max-width: 600px;
+    }
+
+    /* === BEST PRACTICES GRID === */
+    .bp-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: var(--rh-space-lg, 24px);
+      margin-top: var(--rh-space-xl, 32px);
+    }
+    .bp-card {
+      text-align: center;
+      padding: var(--rh-space-lg, 24px) var(--rh-space-md, 16px);
+    }
+    .bp-card .rh-icon { margin-bottom: var(--rh-space-md, 16px); }
+    .bp-card h4 {
+      font-family: var(--font-display);
+      font-size: var(--rh-font-size-heading-sm, 1.25rem);
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: var(--rh-space-sm, 8px);
+    }
+    .bp-card p { font-size: var(--rh-font-size-body-text-md, 1rem); color: var(--text-secondary); line-height: 1.5; }
+
+    /* === DEMO SLIDE === */
+    .demo-highlight {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: var(--rh-space-2xl, 48px);
+    }
+    .demo-code {
+      background: var(--bg-surface);
+      border: 1px solid var(--tag-border);
+      border-radius: var(--rh-border-radius-default, 3px);
+      padding: var(--rh-space-xl, 32px);
+      font-family: var(--font-mono);
+      font-size: var(--rh-font-size-body-text-md, 1rem);
+      color: var(--text-secondary);
+      line-height: 1.8;
+      white-space: pre;
+      max-width: 720px;
+      width: 100%;
+    }
+    .demo-code .cmd { color: var(--accent-light); }
+    .demo-code .comment { color: var(--text-muted); }
+
+    /* === SERIES LIST === */
+    .series-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--rh-space-lg, 24px);
+      margin-top: var(--rh-space-xl, 32px);
+    }
+    .series-list li {
+      display: flex;
+      align-items: center;
+      gap: var(--rh-space-md, 16px);
+      font-size: var(--rh-font-size-body-text-lg, 1.125rem);
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .series-list .part-num {
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-size: var(--rh-font-size-heading-md, 1.5rem);
+      color: var(--accent);
+      min-width: 80px;
+    }
+    .series-list .current-part {
+      background: var(--accent);
+      color: var(--text-primary);
+      padding: var(--rh-space-xs, 4px) var(--rh-space-sm, 8px);
+      border-radius: var(--rh-border-radius-default, 3px);
+      font-size: var(--rh-font-size-body-text-xs, 0.75rem);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-left: var(--rh-space-sm, 8px);
+    }
+
+    /* === THANK YOU === */
+    .thank-you-slide {
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .thank-you-slide h1 {
+      font-size: 5rem;
+      max-width: 100%;
+      margin-bottom: var(--rh-space-xl, 32px);
+    }
+    .thank-you-slide::before {
+      top: -30%;
+      right: -20%;
+      width: 80%;
+      height: 80%;
+      background: radial-gradient(ellipse, rgba(238,0,0,0.12) 0%, transparent 70%);
+    }
+    .logo-footer { margin-top: var(--rh-space-2xl, 48px); }
+
+    /* === CONTROLS === */
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--rh-space-md, 16px) var(--rh-space-xl, 32px);
+      font-family: var(--font-mono);
+      font-size: var(--rh-font-size-body-text-xs, 0.75rem);
+      color: var(--text-muted);
+      z-index: 100;
+      background: linear-gradient(transparent, rgba(0,0,0,0.6));
+    }
+    .progress .current { color: var(--accent); font-weight: 700; }
+
+    /* === CONTEXTUAL NOTES PANEL === */
+    .notes-panel {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 400px;
+      height: 100vh;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--tag-border);
+      padding: var(--rh-space-2xl, 48px) var(--rh-space-lg, 24px);
+      font-family: var(--font-body);
+      font-size: var(--rh-font-size-body-text-sm, 0.875rem);
+      color: var(--text-secondary);
+      line-height: 1.7;
+      overflow-y: auto;
+      transition: right 0.3s ease;
+      z-index: 200;
+    }
+    .notes-panel.visible { right: 0; }
+    .notes-panel h4 {
+      font-family: var(--font-display);
+      font-size: var(--rh-font-size-heading-sm, 1.25rem);
+      color: var(--text-primary);
+      margin-bottom: var(--rh-space-md, 16px);
+    }
+
+    /* === ANIMATIONS === */
+    .slide.active .animate-in {
+      animation: fadeSlideUp 0.6s ease-out forwards;
+      opacity: 0;
+    }
+    .slide.active .animate-in:nth-child(1) { animation-delay: 0s; }
+    .slide.active .animate-in:nth-child(2) { animation-delay: 0.1s; }
+    .slide.active .animate-in:nth-child(3) { animation-delay: 0.15s; }
+    .slide.active .animate-in:nth-child(4) { animation-delay: 0.2s; }
+    .slide.active .animate-in:nth-child(5) { animation-delay: 0.25s; }
+    .slide.active .animate-in:nth-child(6) { animation-delay: 0.3s; }
+    .slide.active .animate-in:nth-child(7) { animation-delay: 0.35s; }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* === RESPONSIVE === */
+    @media (max-width: 768px) {
+      .slide { padding: var(--rh-space-xl, 32px); }
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.5rem; }
+      .two-col, .three-col, .four-col, .bp-grid { grid-template-columns: 1fr; }
+      .big-number { font-size: 4rem; }
+      .thank-you-slide h1 { font-size: 3rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+
+    <!-- SLIDE 1: TITLE -->
+    <div class="slide" data-notes="<h4>Tips</h4><p>Arrow keys or click to navigate. Press 'N' to toggle these contextual notes with references and links for each slide.</p><p>Works in any modern browser — share this HTML file directly. For best results, fullscreen with F11.</p><p>This deck covers fundamental containerization concepts before the hands-on demo.</p>">
+      <div class="breadcrumb animate-in">
+        <svg class="rh-logo small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 613 145" role="img" aria-label="Red Hat"><title>Red Hat</title><path d="M127.47,83.49c12.51,0,30.61-2.58,30.61-17.46a14,14,0,0,0-.31-3.42l-7.45-32.36c-1.72-7.12-3.23-10.35-15.73-16.6C124.89,8.69,103.76.5,97.51.5,91.69.5,90,8,83.06,8c-6.68,0-11.64-5.6-17.89-5.6-6,0-9.91,4.09-12.93,12.5,0,0-8.41,23.72-9.49,27.16A6.43,6.43,0,0,0,42.53,44c0,9.22,36.3,39.45,84.94,39.45M160,72.07c1.73,8.19,1.73,9.05,1.73,10.13,0,14-15.74,21.77-36.43,21.77C78.54,104,37.58,76.6,37.58,58.49a18.45,18.45,0,0,1,1.51-7.33C22.27,52,.5,55,.5,74.22c0,31.48,74.59,70.28,133.65,70.28,45.28,0,56.7-20.48,56.7-36.65,0-12.72-11-27.16-30.83-35.78" fill="#e00"/><path d="M160,72.07c1.73,8.19,1.73,9.05,1.73,10.13,0,14-15.74,21.77-36.43,21.77C78.54,104,37.58,76.6,37.58,58.49a18.45,18.45,0,0,1,1.51-7.33l3.66-9.06A6.43,6.43,0,0,0,42.53,44c0,9.22,36.3,39.45,84.94,39.45,12.51,0,30.61-2.58,30.61-17.46a14,14,0,0,0-.31-3.42Z"/><path d="M579.74,92.8c0,11.89,7.15,17.67,20.19,17.67a52.11,52.11,0,0,0,11.89-1.68V95a24.84,24.84,0,0,1-7.68,1.16c-5.37,0-7.36-1.68-7.36-6.73V68.3h15.56V54.1H596.78v-18l-17,3.68V54.1H568.49V68.3h11.25Zm-53,.32c0-3.68,3.69-5.47,9.26-5.47a43.12,43.12,0,0,1,10.1,1.26v7.15a21.51,21.51,0,0,1-10.63,2.63c-5.46,0-8.73-2.1-8.73-5.57m5.2,17.56c6,0,10.84-1.26,15.36-4.31v3.37h16.82V74.08c0-13.56-9.14-21-24.39-21-8.52,0-16.94,2-26,6.1l6.1,12.52c6.52-2.74,12-4.42,16.83-4.42,7,0,10.62,2.73,10.62,8.31v2.73a49.53,49.53,0,0,0-12.62-1.58c-14.31,0-22.93,6-22.93,16.73,0,9.78,7.78,17.24,20.19,17.24m-92.44-.94h18.09V80.92h30.29v28.82H506V36.12H487.93V64.41H457.64V36.12H439.55ZM370.62,81.87c0-8,6.31-14.1,14.62-14.1A17.22,17.22,0,0,1,397,72.09V91.54A16.36,16.36,0,0,1,385.24,96c-8.2,0-14.62-6.1-14.62-14.09m26.61,27.87h16.83V32.44l-17,3.68V57.05a28.3,28.3,0,0,0-14.2-3.68c-16.19,0-28.92,12.51-28.92,28.5a28.25,28.25,0,0,0,28.4,28.6,25.12,25.12,0,0,0,14.93-4.83ZM320,67c5.36,0,9.88,3.47,11.67,8.83H308.47C310.15,70.3,314.36,67,320,67M291.33,82c0,16.2,13.25,28.82,30.28,28.82,9.36,0,16.2-2.53,23.25-8.42l-11.26-10c-2.63,2.74-6.52,4.21-11.14,4.21a14.39,14.39,0,0,1-13.68-8.83h39.65V83.55c0-17.67-11.88-30.39-28.08-30.39a28.57,28.57,0,0,0-29,28.81M262,51.58c6,0,9.36,3.78,9.36,8.31S268,68.2,262,68.2H244.11V51.58Zm-36,58.16h18.09V82.92h13.77l13.89,26.82H292l-16.2-29.45a22.27,22.27,0,0,0,13.88-20.72c0-13.25-10.41-23.45-26-23.45H226Z" fill="#fff"/></svg>
+        <span>&#8250; Containerization Series</span>
+      </div>
+      <div class="slide-label animate-in">—— CONTAINERIZATION SERIES</div>
+      <h1 class="animate-in"><span class="accent">Containerization</span> Basics</h1>
+      <div class="subtitle animate-in">From concepts to running containers — understand what containers are, why they matter, and how to get started building cloud-native applications.</div>
+      <div class="tags animate-in">
+        <span class="tag accent">Containers</span>
+        <span class="tag">Podman</span>
+        <span class="tag">Images</span>
+        <span class="tag">Orchestration</span>
+        <span class="tag">Hands-On Demo</span>
+      </div>
+      <div class="attribution animate-in">Todd Wardzinski · Architect · Red Hat</div>
+    </div>
+
+    <!-- SLIDE 2: WHAT ARE CONTAINERS -->
+    <div class="slide" data-notes="<h4>Key Concept</h4><p>Containers use Linux kernel features — namespaces for isolation and cgroups for resource control. They share the host OS kernel, which is what makes them so lightweight compared to virtual machines.</p><p>Think of containers like shipping containers: standardized packaging that works with any transport system. The application inside doesn't care what ship (server) it's on.</p>">
+      <div class="slide-label animate-in">—— FUNDAMENTALS</div>
+      <h2 class="animate-in">Containers Are <span class="accent">Lightweight, Standalone Packages</span> That Include Everything Needed to Run</h2>
+      <div class="body-text animate-in" style="margin-bottom: var(--rh-space-xl, 32px);">Code, runtime, system tools, libraries, and settings — all bundled into a single, portable unit that runs the same way everywhere.</div>
+      <ul class="feature-list animate-in">
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container.svg" alt="">
+          <span><strong>Process isolation</strong> — containers share the host OS kernel but run in their own isolated space</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/lifecycle.svg" alt="">
+          <span><strong>Consistent environments</strong> — identical behavior from development through production</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/speedometer.svg" alt="">
+          <span><strong>Fast startup</strong> — seconds instead of minutes, with minimal resource overhead</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- SLIDE 3: VMs vs CONTAINERS -->
+    <div class="slide" data-notes="<h4>Deep Dive</h4><p>VMs virtualize hardware — each VM runs a complete OS with its own kernel. Containers virtualize the OS — they share the host kernel and only package the application layer.</p><p>This is why you can run dozens of containers on hardware that would struggle with a handful of VMs.</p><p>Both have their place: VMs for strong isolation and different OS kernels; containers for application packaging and rapid scaling.</p>">
+      <div class="slide-label animate-in">—— COMPARISON</div>
+      <h2 class="animate-in">Virtual Machines vs. <span class="accent">Containers</span></h2>
+      <div class="two-col animate-in">
+        <div class="compare-box">
+          <h3><img class="rh-icon small" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/virtual-server.svg" alt="" style="margin-right: 8px;">Virtual Machines</h3>
+          <p>Include a full guest OS, hypervisor layer, and dedicated resources. Strong isolation but heavier resource footprint and slower startup times measured in minutes.</p>
+        </div>
+        <div class="compare-box highlighted">
+          <h3><img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container.svg" alt="" style="margin-right: 8px;">Containers</h3>
+          <p>Share the host OS kernel and isolate at the process level. Lightweight, start in seconds, and enable much higher density on the same hardware.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: BUILDING BLOCKS -->
+    <div class="slide" data-notes="<h4>How They Fit Together</h4><p><strong>Images</strong> are built from a Containerfile (Podman) or Dockerfile (Docker). Each instruction creates a layer, and layers are cached for efficiency.</p><p><strong>Containers</strong> add a thin writable layer on top of the read-only image. When a container is deleted, its writable layer is gone — the image remains intact.</p><p><strong>Registries</strong> like Quay.io, Docker Hub, or your organization's private registry store and distribute images. <code>podman pull</code> fetches from a registry; <code>podman push</code> sends to one.</p>">
+      <div class="slide-label animate-in">—— ARCHITECTURE</div>
+      <h2 class="animate-in">Three Core <span class="accent">Building Blocks</span></h2>
+      <div class="three-col animate-in">
+        <div class="card" style="text-align: center;">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container-image.svg" alt="">
+          <h3 style="color: var(--accent); margin-top: var(--rh-space-md, 16px);">Images</h3>
+          <p>Read-only templates with application code, runtime, and dependencies layered together.</p>
+        </div>
+        <div class="card" style="text-align: center;">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container.svg" alt="">
+          <h3 style="color: var(--accent); margin-top: var(--rh-space-md, 16px);">Containers</h3>
+          <p>Running instances of images with a writable layer for application state and data.</p>
+        </div>
+        <div class="card" style="text-align: center;">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container-registry.svg" alt="">
+          <h3 style="color: var(--accent); margin-top: var(--rh-space-md, 16px);">Registries</h3>
+          <p>Storage and distribution systems for container images like Docker Hub or Quay.io.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: CONTAINER LIFECYCLE -->
+    <div class="slide" data-notes="<h4>The Workflow in Practice</h4><p>This is exactly the flow you'll follow in the hands-on demo: write a Containerfile, build it into an image with <code>podman build</code>, and run it with <code>podman run</code>.</p><p>In production, you'd add a 'Ship' step — pushing the image to a registry like Quay.io so other environments can pull it. We skip that in the demo to keep things focused.</p><p>The key insight: the <strong>image</strong> is the artifact. Once built, it's immutable. You can run it anywhere, as many times as you want, and it behaves identically every time.</p>">
+      <div class="slide-label animate-in">—— WORKFLOW</div>
+      <h2 class="animate-in">The Container Lifecycle: <span class="accent">Build → Ship → Run</span></h2>
+      <div class="subtitle animate-in">Three steps take you from source code to a running application — anywhere.</div>
+      <div class="three-col animate-in">
+        <div class="card" style="text-align: center; border-top: 3px solid var(--accent);">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/code.svg" alt="">
+          <h3 style="color: var(--accent); margin-top: var(--rh-space-md, 16px);">1. Build</h3>
+          <p>Write a Containerfile that defines your app's environment. Build it into an immutable image with <code style="color:var(--accent-light)">podman build</code>.</p>
+        </div>
+        <div class="card" style="text-align: center; border-top: 3px solid var(--accent);">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container-registry.svg" alt="">
+          <h3 style="color: var(--accent); margin-top: var(--rh-space-md, 16px);">2. Ship</h3>
+          <p>Push the image to a registry (Quay.io, Docker Hub, or private). Any environment can pull it — dev, staging, or production.</p>
+        </div>
+        <div class="card" style="text-align: center; border-top: 3px solid var(--accent);">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container.svg" alt="">
+          <h3 style="color: var(--accent); margin-top: var(--rh-space-md, 16px);">3. Run</h3>
+          <p>Start a container from the image with <code style="color:var(--accent-light)">podman run</code>. The same image produces identical behavior every time, everywhere.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: IMAGE LAYERING -->
+    <div class="slide" data-notes="<h4>Why Layers Matter</h4><p>Each instruction in a Containerfile (<code>FROM</code>, <code>RUN</code>, <code>COPY</code>, etc.) creates a new read-only layer. Layers are cached — if a layer hasn't changed, Podman reuses the cached version instead of rebuilding it.</p><p><strong>Practical impact:</strong> If you only change your <code>COPY index.html</code> line, Podman skips the <code>FROM</code> and <code>RUN</code> layers entirely. The rebuild takes seconds instead of minutes.</p><p><strong>Image size tip:</strong> Combine related <code>RUN</code> commands with <code>&amp;&amp;</code> to reduce layers. Each layer adds overhead. Clean up temp files in the same <code>RUN</code> instruction that creates them — a <code>RUN rm</code> in a later layer doesn't shrink the image because the file still exists in the earlier layer.</p><p>In the demo, you'll see the layer cache in action if you rebuild after changing only <code>index.html</code>.</p>">
+      <div class="slide-label animate-in">—— HOW IMAGES WORK</div>
+      <h2 class="animate-in">Every Instruction Creates a <span class="accent">Cached Layer</span></h2>
+      <div class="body-text animate-in" style="margin-bottom: var(--rh-space-xl, 32px);">Container images are built from stacked, read-only layers. Each line in your Containerfile adds a layer. Unchanged layers are cached, making rebuilds fast.</div>
+      <div class="demo-highlight animate-in">
+        <div class="demo-code"><span class="comment"># Layer 1 — base image (cached after first pull)</span>
+<span class="cmd">FROM</span> docker.io/library/nginx:alpine
+
+<span class="comment"># Layer 2 — remove default page (cached)</span>
+<span class="cmd">RUN</span> rm /usr/share/nginx/html/index.html
+
+<span class="comment"># Layer 3 — your code (rebuilds when file changes)</span>
+<span class="cmd">COPY</span> index.html /usr/share/nginx/html/
+
+<span class="comment"># Metadata only — no new layer</span>
+<span class="cmd">EXPOSE</span> 80
+<span class="cmd">CMD</span> ["nginx", "-g", "daemon off;"]</div>
+      </div>
+      <ul class="feature-list animate-in" style="margin-top: var(--rh-space-lg, 24px);">
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/speedometer.svg" alt="">
+          <span><strong>Fast rebuilds</strong> — only changed layers are rebuilt; everything above the change is cached</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container-image.svg" alt="">
+          <span><strong>Smaller images</strong> — fewer layers and cleanup in the same <code style="color:var(--accent-light)">RUN</code> step keeps images lean</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- SLIDE 7: WHY CONTAINERS -->
+    <div class="slide" data-notes="<h4>Business Impact</h4><p><strong>Portability:</strong> Build once, deploy to any cloud provider or on-prem — no vendor lock-in.</p><p><strong>Efficiency:</strong> Containers use a fraction of the resources of VMs, reducing infrastructure costs.</p><p><strong>Scalability:</strong> Orchestrators like Kubernetes can spin up new instances in seconds to handle load spikes.</p><p><strong>Consistency:</strong> The same image runs identically in dev, staging, and production — eliminating environment drift.</p>">
+      <div class="slide-label animate-in">—— BENEFITS</div>
+      <h2 class="animate-in">Why <span class="accent">Containers</span> Change Everything</h2>
+      <div class="four-col animate-in">
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/globe.svg" alt="">
+          <h4>Portability</h4>
+          <p>Run anywhere: laptop, data center, or any cloud provider without changes.</p>
+        </div>
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/scalable.svg" alt="">
+          <h4>Efficiency</h4>
+          <p>Maximize resource utilization with lightweight footprint and fast startup.</p>
+        </div>
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/cluster.svg" alt="">
+          <h4>Scalability</h4>
+          <p>Scale horizontally by spinning up additional instances in seconds.</p>
+        </div>
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/check.svg" alt="">
+          <h4>Consistency</h4>
+          <p>Eliminate "works on my machine" with identical environments everywhere.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: WHY DEVELOPERS LOVE CONTAINERS -->
+    <div class="slide" data-notes="<h4>Developer Experience</h4><p>Containers reduce onboarding from days to minutes. New team members clone the repo, run the container, and have a working environment immediately.</p><p>Dependency hell is eliminated — each service carries its own dependencies in its image. No more conflicting library versions.</p><p>CI/CD pipelines become reliable because the same image tested in CI is exactly what ships to production.</p>">
+      <div class="slide-label animate-in">—— FOR DEVELOPERS</div>
+      <h2 class="animate-in">Containers Transform the <span class="accent">Developer Experience</span></h2>
+      <div class="subtitle animate-in">Eliminating environment friction and accelerating the path from code to production.</div>
+      <ul class="feature-list animate-in">
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/rocket.svg" alt="">
+          <span><strong>Onboard instantly</strong> — new team members run the full stack in minutes</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container-secured.svg" alt="">
+          <span><strong>No dependency conflicts</strong> — the container carries what it needs to run</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/bug.svg" alt="">
+          <span><strong>Debug with confidence</strong> — reproduce production issues locally</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/run-pipeline.svg" alt="">
+          <span><strong>Ship faster</strong> — consistent CI/CD pipelines from dev to prod</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- SLIDE 9: ORCHESTRATION MATTERS -->
+    <div class="slide" data-notes="<h4>Why Not Just Run Containers Manually?</h4><p>A single container is easy. But production means dozens or hundreds of containers across multiple hosts. You need automated placement, health monitoring, networking, and updates.</p><p>Container orchestration platforms handle: scheduling (which host runs which container), networking (how containers find each other), storage (persistent data), scaling (adding/removing instances), and self-healing (restarting failed containers).</p>">
+      <div class="slide-label animate-in">—— ORCHESTRATION</div>
+      <h2 class="animate-in">Running Containers in Production Requires <span class="accent">Automated Management</span></h2>
+      <div class="body-text animate-in" style="margin-bottom: var(--rh-space-xl, 32px);">When you move beyond a single container, you need orchestration for deployment, scaling, networking, and availability across clusters of machines.</div>
+      <ul class="feature-list animate-in">
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/orchestration.svg" alt="">
+          <span><strong>Automated scheduling</strong> and placement of containers across nodes</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/lifecycle.svg" alt="">
+          <span><strong>Self-healing</strong> with automatic restarts and replacements</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/network-automation.svg" alt="">
+          <span><strong>Service discovery</strong> and load balancing built in</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/automation.svg" alt="">
+          <span><strong>Rolling updates</strong> and automated rollbacks</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- SLIDE 10: KUBERNETES vs OPENSHIFT -->
+    <div class="slide" data-notes="<h4>Choosing a Platform</h4><p><strong>Kubernetes</strong> is the open-source standard — massive community, cloud-agnostic, very flexible. It's the engine.</p><p><strong>OpenShift ROSA</strong> (Red Hat OpenShift Service on AWS) is a fully managed OpenShift service jointly operated by Red Hat and AWS. It adds built-in CI/CD (Tekton, ArgoCD), enhanced security (SCCs, RBAC defaults), a developer console, and enterprise support — all running natively on AWS infrastructure.</p><p>ROSA removes the operational burden of managing your own Kubernetes control plane while giving you the full OpenShift developer experience. Billing goes through your existing AWS account.</p><p>For this series, we start with Podman (standalone containers), then progress to Kubernetes and OpenShift ROSA concepts in later parts.</p>">
+      <div class="slide-label animate-in">—— PLATFORMS</div>
+      <h2 class="animate-in">Kubernetes vs. <span class="accent">OpenShift ROSA</span></h2>
+      <div class="two-col animate-in">
+        <div class="compare-box">
+          <h3><img class="rh-icon small" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/kubernetes-pod.svg" alt="" style="margin-right: 8px;">Kubernetes</h3>
+          <p>The open-source standard for container orchestration. Provides core functionality for scheduling, scaling, and managing containerized applications across clusters.</p>
+        </div>
+        <div class="compare-box highlighted">
+          <h3><img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/platform.svg" alt="" style="margin-right: 8px;">OpenShift ROSA</h3>
+          <p>Red Hat OpenShift Service on AWS — a fully managed OpenShift platform with enterprise security, developer tools, and CI/CD pipelines, running natively on AWS and jointly supported by Red Hat and AWS.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 11: BEST PRACTICES -->
+    <div class="slide" data-notes="<h4>Best Practices Detail</h4><p><strong>Security:</strong> Use images from trusted registries (e.g., registry.redhat.io). Never run as root inside a container. Scan images with tools like Trivy or Clair.</p><p><strong>Image Size:</strong> Multi-stage builds let you compile in one stage and copy only the artifact to a minimal runtime image. Alpine-based images are often under 50MB.</p><p><strong>Health Checks:</strong> Kubernetes uses liveness probes (is the process alive?) and readiness probes (is it ready to accept traffic?) to manage container lifecycle.</p><p><strong>Immutability:</strong> Never SSH into a container to fix something. Fix the image, rebuild, redeploy. This makes rollbacks trivial.</p>">
+      <div class="slide-label animate-in">—— BEST PRACTICES</div>
+      <h2 class="animate-in">Container <span class="accent">Best Practices</span></h2>
+      <div class="bp-grid animate-in">
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/secured.svg" alt="">
+          <h4>Security</h4>
+          <p>Use minimal base images, scan for vulnerabilities, and run as non-root.</p>
+        </div>
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/report.svg" alt="">
+          <h4>Logging</h4>
+          <p>Send logs to stdout/stderr and aggregate with centralized logging.</p>
+        </div>
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/speedometer.svg" alt="">
+          <h4>Resources</h4>
+          <p>Set CPU and memory limits to prevent runaway containers.</p>
+        </div>
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container-image.svg" alt="">
+          <h4>Image Size</h4>
+          <p>Keep images small with multi-stage builds. Remove unnecessary files.</p>
+        </div>
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/stethoscope.svg" alt="">
+          <h4>Health Checks</h4>
+          <p>Implement liveness and readiness probes for automated recovery.</p>
+        </div>
+        <div class="bp-card">
+          <img class="rh-icon large accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/padlock-locked.svg" alt="">
+          <h4>Immutability</h4>
+          <p>Never patch in place — rebuild and redeploy for any change.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 12: PODMAN vs DOCKER -->
+    <div class="slide" data-notes="<h4>Why Podman?</h4><p><strong>CLI compatibility:</strong> Podman accepts the same commands as Docker. You can literally <code>alias docker=podman</code> and most workflows work unchanged. Existing Dockerfiles work as-is (Podman calls them Containerfiles by convention, but reads both).</p><p><strong>No daemon:</strong> Docker runs a long-lived background daemon (<code>dockerd</code>) as root. If the daemon crashes, all containers stop. Podman uses a fork/exec model — each container is a direct child process. No single point of failure, no root daemon.</p><p><strong>Systemd integration:</strong> Podman can generate systemd unit files from running containers with <code>podman generate systemd</code>, making it easy to manage containers as system services.</p><p><strong>Red Hat ecosystem:</strong> Podman ships with RHEL, is the default container tool in OpenShift developer workflows, and is supported by Red Hat. Docker is not included in RHEL 8+.</p>">
+      <div class="slide-label animate-in">—— TOOLING</div>
+      <h2 class="animate-in">Podman: A <span class="accent">Drop-In Replacement</span> for Docker</h2>
+      <div class="body-text animate-in" style="margin-bottom: var(--rh-space-xl, 32px);">If you know Docker, you already know Podman. Same CLI, same Containerfile format — but with key architectural differences that matter in production.</div>
+      <div class="two-col animate-in">
+        <div class="compare-box">
+          <h3><img class="rh-icon small" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container.svg" alt="" style="margin-right: 8px;">Docker</h3>
+          <p>Requires a privileged root daemon (<code style="color:var(--accent-light)">dockerd</code>) running in the background. All container operations go through this single process. If the daemon stops, all containers stop.</p>
+        </div>
+        <div class="compare-box highlighted">
+          <h3><img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/container-secured.svg" alt="" style="margin-right: 8px;">Podman</h3>
+          <p>Daemonless — each container runs as a direct child process. No root service required. Rootless by default. Same CLI commands: <code style="color:var(--accent-light)">podman build</code>, <code style="color:var(--accent-light)">podman run</code>, <code style="color:var(--accent-light)">podman push</code>.</p>
+        </div>
+      </div>
+      <ul class="feature-list animate-in" style="margin-top: var(--rh-space-xl, 32px);">
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/interoperability.svg" alt="">
+          <span><strong>Same CLI</strong> — <code style="color:var(--accent-light)">alias docker=podman</code> and existing scripts just work</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/platform.svg" alt="">
+          <span><strong>Red Hat default</strong> — ships with RHEL and is the standard tool in the OpenShift ecosystem</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- SLIDE 13: WHY ROOTLESS CONTAINERS -->
+    <div class="slide" data-notes="<h4>Rootless Deep Dive</h4><p><strong>How it works:</strong> Rootless containers use Linux user namespaces to map the container's root (UID 0) to an unprivileged user on the host. Even if an attacker escapes the container, they land as a regular user — not root.</p><p><strong>OpenShift ROSA:</strong> ROSA enforces rootless by default through Security Context Constraints (SCCs). The <code>restricted-v2</code> SCC prevents containers from running as root, requires a non-root user, and drops all Linux capabilities. This is not optional — it's the platform default.</p><p><strong>Podman:</strong> Podman is simply rootless-native. Unlike Docker (which requires a privileged <code>dockerd</code> daemon), Podman has no daemon at all. Rootless is just how it works out of the box — not a special mode you enable.</p><p><strong>Trade-off:</strong> Rootless containers cannot bind to ports below 1024. We use the <code>-P</code> flag (random high port) in our demo, which handles this automatically.</p>">
+      <div class="slide-label animate-in">—— SECURITY</div>
+      <h2 class="animate-in">Rootless Containers <span class="accent">Eliminate Privilege Escalation</span></h2>
+      <div class="body-text animate-in" style="margin-bottom: var(--rh-space-xl, 32px);">Traditional containers run as root on the host — if an attacker escapes the container, they own the machine. Rootless containers solve this by running entirely under a normal user account.</div>
+      <div class="two-col animate-in">
+        <div class="compare-box">
+          <h3><img class="rh-icon small" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/padlock-unlocked.svg" alt="" style="margin-right: 8px;">Root Containers</h3>
+          <p>Container processes run as root on the host. A container escape grants full host access. Requires a privileged daemon (e.g., Docker's <code style="color:var(--accent-light)">dockerd</code>).</p>
+        </div>
+        <div class="compare-box highlighted">
+          <h3><img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/padlock-locked.svg" alt="" style="margin-right: 8px;">Rootless Containers</h3>
+          <p>Container processes map to an unprivileged user on the host. Even a container escape yields zero host-level privileges. No privileged daemon required.</p>
+        </div>
+      </div>
+      <ul class="feature-list animate-in" style="margin-top: var(--rh-space-xl, 32px);">
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/platform.svg" alt="">
+          <span><strong>OpenShift ROSA default</strong> — ROSA enforces rootless containers out of the box via Security Context Constraints</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/shield.svg" alt="">
+          <span><strong>Podman is rootless-native</strong> — no daemon, no sudo — rootless is the default mode, not an add-on</span>
+        </li>
+        <li>
+          <img class="rh-icon small accent" src="https://cdn.jsdelivr.net/npm/@rhds/icons@2.1.0/standard/secured.svg" alt="">
+          <span><strong>Defense in depth</strong> — user namespaces isolate container UIDs from host UIDs at the kernel level</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- SLIDE 14: CONTAINERFILE EXAMPLE -->
+    <div class="slide" data-notes="<h4>Demo Details</h4><p>The demo uses <strong>Podman</strong> in rootless mode — no sudo required. Podman is Red Hat's daemonless container engine and a drop-in replacement for Docker.</p><p>Each participant gets their own <strong>tmux</strong> session on a shared account. Unique naming (<code>$MY_NAME</code>) keeps everyone's containers and images separate.</p><p>You'll build a custom NGINX container that returns a plain-text 'I'm up!' message. The full step-by-step directions are in <code>Demo_Directions.md</code>.</p><p>[IMAGE OPPORTUNITY] Prompt: 'Terminal screenshot showing a dark terminal with green command output, Podman building an NGINX container, minimal and clean, dark background with subtle red accent glow'</p>">
+      <div class="slide-label animate-in">—— HANDS-ON</div>
+      <h1 class="animate-in" style="font-size: 4rem;">Time to <span class="accent-italic">Build</span></h1>
+      <div class="subtitle animate-in">Build and run an NGINX container with Podman — from Containerfile to curl in 15 minutes.</div>
+      <div class="demo-highlight animate-in">
+        <div class="demo-code"><span class="comment"># Example Containerfile</span>
+
+<span class="cmd">FROM</span> docker.io/library/nginx:alpine
+
+<span class="comment"># Remove the default NGINX welcome page</span>
+<span class="cmd">RUN</span> rm /usr/share/nginx/html/index.html
+
+<span class="comment"># Copy in our custom response page</span>
+<span class="cmd">COPY</span> index.html /usr/share/nginx/html/index.html
+
+<span class="comment"># Document the port the container listens on</span>
+<span class="cmd">EXPOSE</span> 80
+
+<span class="comment"># Run NGINX in the foreground</span>
+<span class="cmd">CMD</span> ["nginx", "-g", "daemon off;"]</div>
+      </div>
+      <div class="tags animate-in" style="margin-top: var(--rh-space-xl, 32px);">
+        <span class="tag accent">Podman</span>
+        <span class="tag">Rootless</span>
+        <span class="tag">NGINX</span>
+        <span class="tag">Containerfile</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 15: DEMO QR CODE -->
+    <div class="slide" style="align-items: center; text-align: center;" data-notes="<h4>Demo Repository</h4><p>Scan the QR code or visit: <a href='https://github.com/toddward/containerization-demo-podman-tmux'>github.com/toddward/containerization-demo-podman-tmux</a></p><p>The repo contains the full Demo_Directions.md with step-by-step instructions for building an NGINX container with Podman on a shared account using tmux sessions.</p><p>Each participant will use their own tmux session and a unique <code>$MY_NAME</code> variable to keep containers and images separate.</p>">
+      <div class="slide-label animate-in">—— LET'S GO</div>
+      <h1 class="animate-in" style="font-size: 4rem; max-width: 100%;"><span class="accent">Demo</span> Time</h1>
+      <div class="subtitle animate-in" style="max-width: 600px; margin: 0 auto var(--rh-space-xl, 32px);">Scan the QR code to access the demo repo with full step-by-step directions.</div>
+      <div class="animate-in" style="margin: var(--rh-space-lg, 24px) auto;">
+        <img src="data:image/png;base64,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" alt="QR code linking to the demo repository" style="width: 280px; height: 280px; border-radius: var(--rh-border-radius-default, 3px);">
+      </div>
+      <div class="animate-in" style="font-family: var(--font-mono); font-size: var(--rh-font-size-body-text-sm, 0.875rem); color: var(--text-muted); margin-top: var(--rh-space-md, 16px);"><a href="https://github.com/toddward/containerization-demo-podman-tmux" target="_blank" rel="noopener noreferrer" style="color: var(--text-muted); text-decoration: underline; text-underline-offset: 4px;">github.com/toddward/containerization-demo-podman-tmux</a></div>
+      <div class="tags animate-in" style="margin-top: var(--rh-space-xl, 32px); justify-content: center;">
+        <span class="tag accent">Podman</span>
+        <span class="tag">tmux</span>
+        <span class="tag">NGINX</span>
+        <span class="tag">Rootless</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 16: THANK YOU -->
+    <div class="slide thank-you-slide" data-notes="<h4>Resources</h4><p>Podman documentation: https://docs.podman.io</p><p>Red Hat container guides: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/9/html/building_running_and_managing_containers</p><p>OpenShift ROSA docs: https://docs.openshift.com/rosa/</p><p>Kubernetes docs: https://kubernetes.io/docs/home/</p>">
+      <h1 class="animate-in">Thank <span class="accent">You</span></h1>
+      <div class="attribution animate-in" style="margin-top: 0; padding-top: var(--rh-space-md, 16px);">Todd Wardzinski · Architect · Red Hat</div>
+      <div class="logo-footer animate-in">
+        <svg class="rh-logo large" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 613 145" role="img" aria-label="Red Hat"><title>Red Hat</title><path d="M127.47,83.49c12.51,0,30.61-2.58,30.61-17.46a14,14,0,0,0-.31-3.42l-7.45-32.36c-1.72-7.12-3.23-10.35-15.73-16.6C124.89,8.69,103.76.5,97.51.5,91.69.5,90,8,83.06,8c-6.68,0-11.64-5.6-17.89-5.6-6,0-9.91,4.09-12.93,12.5,0,0-8.41,23.72-9.49,27.16A6.43,6.43,0,0,0,42.53,44c0,9.22,36.3,39.45,84.94,39.45M160,72.07c1.73,8.19,1.73,9.05,1.73,10.13,0,14-15.74,21.77-36.43,21.77C78.54,104,37.58,76.6,37.58,58.49a18.45,18.45,0,0,1,1.51-7.33C22.27,52,.5,55,.5,74.22c0,31.48,74.59,70.28,133.65,70.28,45.28,0,56.7-20.48,56.7-36.65,0-12.72-11-27.16-30.83-35.78" fill="#e00"/><path d="M160,72.07c1.73,8.19,1.73,9.05,1.73,10.13,0,14-15.74,21.77-36.43,21.77C78.54,104,37.58,76.6,37.58,58.49a18.45,18.45,0,0,1,1.51-7.33l3.66-9.06A6.43,6.43,0,0,0,42.53,44c0,9.22,36.3,39.45,84.94,39.45,12.51,0,30.61-2.58,30.61-17.46a14,14,0,0,0-.31-3.42Z"/><path d="M579.74,92.8c0,11.89,7.15,17.67,20.19,17.67a52.11,52.11,0,0,0,11.89-1.68V95a24.84,24.84,0,0,1-7.68,1.16c-5.37,0-7.36-1.68-7.36-6.73V68.3h15.56V54.1H596.78v-18l-17,3.68V54.1H568.49V68.3h11.25Zm-53,.32c0-3.68,3.69-5.47,9.26-5.47a43.12,43.12,0,0,1,10.1,1.26v7.15a21.51,21.51,0,0,1-10.63,2.63c-5.46,0-8.73-2.1-8.73-5.57m5.2,17.56c6,0,10.84-1.26,15.36-4.31v3.37h16.82V74.08c0-13.56-9.14-21-24.39-21-8.52,0-16.94,2-26,6.1l6.1,12.52c6.52-2.74,12-4.42,16.83-4.42,7,0,10.62,2.73,10.62,8.31v2.73a49.53,49.53,0,0,0-12.62-1.58c-14.31,0-22.93,6-22.93,16.73,0,9.78,7.78,17.24,20.19,17.24m-92.44-.94h18.09V80.92h30.29v28.82H506V36.12H487.93V64.41H457.64V36.12H439.55ZM370.62,81.87c0-8,6.31-14.1,14.62-14.1A17.22,17.22,0,0,1,397,72.09V91.54A16.36,16.36,0,0,1,385.24,96c-8.2,0-14.62-6.1-14.62-14.09m26.61,27.87h16.83V32.44l-17,3.68V57.05a28.3,28.3,0,0,0-14.2-3.68c-16.19,0-28.92,12.51-28.92,28.5a28.25,28.25,0,0,0,28.4,28.6,25.12,25.12,0,0,0,14.93-4.83ZM320,67c5.36,0,9.88,3.47,11.67,8.83H308.47C310.15,70.3,314.36,67,320,67M291.33,82c0,16.2,13.25,28.82,30.28,28.82,9.36,0,16.2-2.53,23.25-8.42l-11.26-10c-2.63,2.74-6.52,4.21-11.14,4.21a14.39,14.39,0,0,1-13.68-8.83h39.65V83.55c0-17.67-11.88-30.39-28.08-30.39a28.57,28.57,0,0,0-29,28.81M262,51.58c6,0,9.36,3.78,9.36,8.31S268,68.2,262,68.2H244.11V51.58Zm-36,58.16h18.09V82.92h13.77l13.89,26.82H292l-16.2-29.45a22.27,22.27,0,0,0,13.88-20.72c0-13.25-10.41-23.45-26-23.45H226Z" fill="#fff"/></svg>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- NOTES PANEL -->
+  <div class="notes-panel"></div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="nav-hint">← → or click to navigate · N for additional context</div>
+    <div class="progress"><span class="current">1</span> / <span class="total">12</span></div>
+  </div>
+
+  <script>
+  (function() {
+    const slides = document.querySelectorAll('.slide');
+    const currentEl = document.querySelector('.current');
+    const totalEl = document.querySelector('.total');
+    const notesPanel = document.querySelector('.notes-panel');
+    let idx = 0;
+    let notesVisible = false;
+
+    totalEl.textContent = slides.length;
+
+    function pauseAllMedia() {
+      document.querySelectorAll('.slide:not(.active) video').forEach(v => v.pause());
+      document.querySelectorAll('.slide:not(.active) iframe').forEach(f => {
+        f.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        f.contentWindow.postMessage('{"method":"pause"}', '*');
+      });
+    }
+
+    function playActiveMedia() {
+      document.querySelectorAll('.slide.active video').forEach(v => v.play());
+      document.querySelectorAll('.slide.active iframe').forEach(f => {
+        f.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        f.contentWindow.postMessage('{"method":"play"}', '*');
+      });
+    }
+
+    function show(i) {
+      slides.forEach((s, j) => {
+        s.classList.toggle('active', j === i);
+        s.style.display = j === i ? 'flex' : 'none';
+      });
+      currentEl.textContent = i + 1;
+      pauseAllMedia();
+      playActiveMedia();
+      if (notesVisible && notesPanel) {
+        const note = slides[i].dataset.notes || '';
+        notesPanel.innerHTML = note;
+      }
+    }
+
+    function next() { if (idx < slides.length - 1) { idx++; show(idx); } }
+    function prev() { if (idx > 0) { idx--; show(idx); } }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+      if (e.key === 'ArrowLeft') { prev(); }
+      if (e.key === 'n' || e.key === 'N') {
+        notesVisible = !notesVisible;
+        if (notesPanel) notesPanel.classList.toggle('visible', notesVisible);
+        show(idx);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.controls') || e.target.closest('.notes-panel') || e.target.closest('.video-container') || e.target.closest('.media-container') || e.target.closest('a[href]')) return;
+      const x = e.clientX / window.innerWidth;
+      x > 0.5 ? next() : prev();
+    });
+
+    let touchStartX = 0;
+    document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+    document.addEventListener('touchend', (e) => {
+      const diff = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(diff) > 50) { diff < 0 ? next() : prev(); }
+    });
+
+    show(0);
+  })();
+  </script>
+</body>
+</html>
