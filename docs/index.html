@@ -530,18 +530,21 @@
     </div>
 
     <!-- SLIDE 6: IMAGE LAYERING -->
-    <div class="slide" data-notes="<h4>Why Layers Matter</h4><p>Each instruction in a Containerfile (<code>FROM</code>, <code>RUN</code>, <code>COPY</code>, etc.) creates a new read-only layer. Layers are cached — if a layer hasn't changed, Podman reuses the cached version instead of rebuilding it.</p><p><strong>Practical impact:</strong> If you only change your <code>COPY index.html</code> line, Podman skips the <code>FROM</code> and <code>RUN</code> layers entirely. The rebuild takes seconds instead of minutes.</p><p><strong>Image size tip:</strong> Combine related <code>RUN</code> commands with <code>&amp;&amp;</code> to reduce layers. Each layer adds overhead. Clean up temp files in the same <code>RUN</code> instruction that creates them — a <code>RUN rm</code> in a later layer doesn't shrink the image because the file still exists in the earlier layer.</p><p>In the demo, you'll see the layer cache in action if you rebuild after changing only <code>index.html</code>.</p>">
+    <div class="slide" data-notes="<h4>Why Layers Matter</h4><p>Each instruction in a Containerfile (<code>FROM</code>, <code>RUN</code>, <code>COPY</code>, etc.) creates a new read-only layer. Layers are cached — if a layer hasn't changed, Podman reuses the cached version instead of rebuilding it.</p><p><strong>Practical impact:</strong> If you only change your <code>COPY index.html</code> line, Podman skips the <code>FROM</code>, <code>RUN yum install</code>, and <code>RUN rm</code> layers entirely. The rebuild takes seconds instead of minutes.</p><p><strong>Image size tip:</strong> Combine related <code>RUN</code> commands with <code>&amp;&amp;</code> to reduce layers. Each layer adds overhead. Clean up temp files in the same <code>RUN</code> instruction that creates them — a <code>RUN rm</code> in a later layer doesn't shrink the image because the file still exists in the earlier layer.</p><p>In the demo, you'll see the layer cache in action if you rebuild after changing only <code>index.html</code>.</p>">
       <div class="slide-label animate-in">—— HOW IMAGES WORK</div>
       <h2 class="animate-in">Every Instruction Creates a <span class="accent">Cached Layer</span></h2>
       <div class="body-text animate-in" style="margin-bottom: var(--rh-space-xl, 32px);">Container images are built from stacked, read-only layers. Each line in your Containerfile adds a layer. Unchanged layers are cached, making rebuilds fast.</div>
       <div class="demo-highlight animate-in">
         <div class="demo-code"><span class="comment"># Layer 1 — base image (cached after first pull)</span>
-<span class="cmd">FROM</span> docker.io/library/nginx:alpine
+<span class="cmd">FROM</span> registry.access.redhat.com/ubi8/ubi:latest
 
-<span class="comment"># Layer 2 — remove default page (cached)</span>
-<span class="cmd">RUN</span> rm /usr/share/nginx/html/index.html
+<span class="comment"># Layer 2 — install NGINX (cached)</span>
+<span class="cmd">RUN</span> yum install -y nginx && yum clean all
 
-<span class="comment"># Layer 3 — your code (rebuilds when file changes)</span>
+<span class="comment"># Layer 3 — remove default page (cached)</span>
+<span class="cmd">RUN</span> rm -f /usr/share/nginx/html/index.html
+
+<span class="comment"># Layer 4 — your code (rebuilds when file changes)</span>
 <span class="cmd">COPY</span> index.html /usr/share/nginx/html/
 
 <span class="comment"># Metadata only — no new layer</span>
@@ -758,10 +761,13 @@
       <div class="demo-highlight animate-in">
         <div class="demo-code"><span class="comment"># Example Containerfile</span>
 
-<span class="cmd">FROM</span> docker.io/library/nginx:alpine
+<span class="cmd">FROM</span> registry.access.redhat.com/ubi8/ubi:latest
+
+<span class="comment"># Install NGINX from the UBI repos</span>
+<span class="cmd">RUN</span> yum install -y nginx && yum clean all
 
 <span class="comment"># Remove the default NGINX welcome page</span>
-<span class="cmd">RUN</span> rm /usr/share/nginx/html/index.html
+<span class="cmd">RUN</span> rm -f /usr/share/nginx/html/index.html
 
 <span class="comment"># Copy in our custom response page</span>
 <span class="cmd">COPY</span> index.html /usr/share/nginx/html/index.html
